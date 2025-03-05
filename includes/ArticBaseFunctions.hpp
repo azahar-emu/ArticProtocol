@@ -15,19 +15,4 @@ namespace ArticBaseFunctions {
 
     // All destruct functions should be defined here
     extern std::vector<bool(*)()> destructFunctions;
-
-    enum class HandleType {
-        FILE,
-        DIR,
-        ARCHIVE
-    };
-
-    // Controller_Start
-    namespace ArticController {
-        extern Thread thread;
-        extern bool thread_run;
-        extern int socket_fd;
-        extern volatile bool socket_ready;
-        void Handler(void* arg);
-    };
 };
