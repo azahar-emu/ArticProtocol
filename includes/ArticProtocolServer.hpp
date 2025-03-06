@@ -1,14 +1,14 @@
 #pragma once
 #include "Main.hpp"
-#include "ArticBaseCommon.hpp"
+#include "ArticProtocolCommon.hpp"
 #include "queue"
 #include <tuple>
 #include "CTRPluginFramework/System/Mutex.hpp"
 
-class ArticBaseServer {
+class ArticProtocolServer {
 public:
-    ArticBaseServer(int socket_fd);
-    ~ArticBaseServer();
+    ArticProtocolServer(int socket_fd);
+    ~ArticProtocolServer();
 
     void Serve();
     void QueryStop();
@@ -25,9 +25,9 @@ private:
 
     class RequestHandler {
     public:
-        RequestHandler(ArticBaseServer* serv, int id);
+        RequestHandler(ArticProtocolServer* serv, int id);
         ~RequestHandler();
-        ArticBaseServer* server;
+        ArticProtocolServer* server;
         Thread thread;
         static void HandleThread(void* arg);
         void Serve();

@@ -1,5 +1,5 @@
-#include "ArticBaseServer.hpp"
-#include "ArticBaseFunctions.hpp"
+#include "ArticProtocolServer.hpp"
+#include "ArticFunctions.hpp"
 #include "CTRPluginFramework/System/Lock.hpp"
 
 #include <stdio.h>
@@ -18,7 +18,7 @@
 
 extern int transferedBytes;
 
-ArticBaseServer::ArticBaseServer(int sock_fd) {
+ArticProtocolServer::ArticProtocolServer(int sock_fd) {
     socketFd = sock_fd;
 
     LightEvent_Init(&newPendingRequest, ResetType::RESET_ONESHOT);
@@ -28,7 +28,7 @@ ArticBaseServer::ArticBaseServer(int sock_fd) {
     }
 }
 
-ArticBaseServer::~ArticBaseServer() {
+ArticProtocolServer::~ArticProtocolServer() {
     for (int i = 0; i < requestHandlers.size(); i++) {
         delete requestHandlers[i];
     }
@@ -40,7 +40,7 @@ ArticBaseServer::~ArticBaseServer() {
     }
 }
 
-void ArticBaseServer::Serve() {
+void ArticProtocolServer::Serve() {
     ArticBaseCommon::RequestPacket req;
     std::array<ArticBaseCommon::RequestParameter, MAX_PARAM_AMOUNT> params;
     int retryCount = 0;
@@ -74,9 +74,9 @@ void ArticBaseServer::Serve() {
             } else if (method == "$PORTS") {
                 snprintf(resp.dataRaw, sizeof(resp.dataRaw), "%d,%d,%d,%d", SERVER_PORT + 1, SERVER_PORT + 2, SERVER_PORT + 3, SERVER_PORT + 4);
             } else if (method == "$MAXSIZE") {
-                snprintf(resp.dataRaw, sizeof(resp.dataRaw), "%d", ArticBaseServer::MAX_WORK_BUF_SIZE);
+                snprintf(resp.dataRaw, sizeof(resp.dataRaw), "%d", ArticProtocolServer::MAX_WORK_BUF_SIZE);
             } else if (method == "$MAXPARAM") {
-                snprintf(resp.dataRaw, sizeof(resp.dataRaw), "%d", ArticBaseServer::MAX_PARAM_AMOUNT);
+                snprintf(resp.dataRaw, sizeof(resp.dataRaw), "%d", ArticProtocolServer::MAX_PARAM_AMOUNT);
             } else if (method == "$READY") {
                 bool ready = true;
                 for (int i = 0; i < requestHandlers.size(); i++) {
@@ -119,7 +119,7 @@ void ArticBaseServer::Serve() {
     Stop();
 }
 
-void ArticBaseServer::QueryStop() {
+void ArticProtocolServer::QueryStop() {
     stopQueried = true;
     if (socketFd >= 0) {
         int fd = socketFd;
@@ -129,7 +129,7 @@ void ArticBaseServer::QueryStop() {
     }
 }
 
-bool ArticBaseServer::SetNonBlock(int sockFD, bool nonBlocking) {
+bool ArticProtocolServer::SetNonBlock(int sockFD, bool nonBlocking) {
     int flags = fcntl(sockFD, F_GETFL, 0);
     if (flags < 0) {
         return false;
@@ -147,7 +147,7 @@ bool ArticBaseServer::SetNonBlock(int sockFD, bool nonBlocking) {
 }
 
 
-void ArticBaseServer::Stop() {
+void ArticProtocolServer::Stop() {
     if (!run)
         return;
     run = false;
@@ -185,7 +185,7 @@ void ArticBaseServer::Stop() {
     } 
 }
 
-bool ArticBaseServer::Read(int& sockFD, void* buffer, size_t size) {
+bool ArticProtocolServer::Read(int& sockFD, void* buffer, size_t size) {
     size_t read_bytes = 0;
     while (read_bytes != size) {
         int new_read = recv(sockFD, (void*)((uintptr_t)buffer + read_bytes), size - read_bytes, 0);
@@ -203,7 +203,7 @@ bool ArticBaseServer::Read(int& sockFD, void* buffer, size_t size) {
     return read_bytes == size;
 }
 
-bool ArticBaseServer::Write(int& sockFD, void* buffer, size_t size) {
+bool ArticProtocolServer::Write(int& sockFD, void* buffer, size_t size) {
     size_t write_bytes = 0;
     while (write_bytes != size)
     {
@@ -222,7 +222,7 @@ bool ArticBaseServer::Write(int& sockFD, void* buffer, size_t size) {
     return write_bytes == size;
 }
 
-size_t ArticBaseServer::RecvFrom(int& sockFD, void* buffer, size_t size, void* addr, void* addr_size) {
+size_t ArticProtocolServer::RecvFrom(int& sockFD, void* buffer, size_t size, void* addr, void* addr_size) {
     while (true) {
         int new_read = recvfrom(sockFD, buffer, size, 0, (sockaddr*)addr, (socklen_t*)addr_size);
         if (new_read < 0) {
@@ -237,7 +237,7 @@ size_t ArticBaseServer::RecvFrom(int& sockFD, void* buffer, size_t size, void* a
     }
 }
 
-size_t ArticBaseServer::SendTo(int& sockFD, void* buffer, size_t size, void* addr, void* addr_size) {
+size_t ArticProtocolServer::SendTo(int& sockFD, void* buffer, size_t size, void* addr, void* addr_size) {
     socklen_t addr_len = *(socklen_t*)addr_size;
     while (true) {
         int new_written = sendto(sockFD, buffer, size, 0, (sockaddr*)addr, addr_len);
@@ -253,11 +253,11 @@ size_t ArticBaseServer::SendTo(int& sockFD, void* buffer, size_t size, void* add
     }
 }
 
-ArticBaseServer::RequestHandler::RequestHandler(ArticBaseServer* serv, int id) {
+ArticProtocolServer::RequestHandler::RequestHandler(ArticProtocolServer* serv, int id) {
     server = serv;
     this->id = id;
 
-    workBufferSize = ArticBaseServer::MAX_WORK_BUF_SIZE;
+    workBufferSize = ArticProtocolServer::MAX_WORK_BUF_SIZE;
     workBuffer = linearAlloc(workBufferSize);
 
     if (workBuffer == nullptr) {
@@ -269,14 +269,14 @@ ArticBaseServer::RequestHandler::RequestHandler(ArticBaseServer* serv, int id) {
     thread = threadCreate(RequestHandler::HandleThread, this, 0x1000, prio - 1, -2, false);
 }
 
-ArticBaseServer::RequestHandler::~RequestHandler() {
+ArticProtocolServer::RequestHandler::~RequestHandler() {
     threadJoin(thread, U64_MAX);
     threadFree(thread);
 
     linearFree(workBuffer);
 }
 
-void ArticBaseServer::RequestHandler::HandleThread(void* arg) {
+void ArticProtocolServer::RequestHandler::HandleThread(void* arg) {
     RequestHandler* own = (RequestHandler*)arg;
     own->Serve();
     if (own->accept_fd >= 0) {
@@ -288,7 +288,7 @@ void ArticBaseServer::RequestHandler::HandleThread(void* arg) {
     threadExit(1);
 }
 
-void ArticBaseServer::RequestHandler::Serve() {
+void ArticProtocolServer::RequestHandler::Serve() {
     if (!workBuffer) {
         return;
     }
@@ -301,7 +301,7 @@ void ArticBaseServer::RequestHandler::Serve() {
         return;
     }
 
-    if (!ArticBaseServer::SetNonBlock(listen_fd, true)) {
+    if (!ArticProtocolServer::SetNonBlock(listen_fd, true)) {
         logger.Error("Worker %d: Cannot set non-block", id);
         close(listen_fd);
         listen_fd = -1;
@@ -357,7 +357,7 @@ void ArticBaseServer::RequestHandler::Serve() {
 
     logger.Debug("Worker %d: Accepted %s:%d", id, inet_ntoa(peeraddr.sin_addr), ntohs(peeraddr.sin_port));
 
-    if (!ArticBaseServer::SetNonBlock(accept_fd, true)) {
+    if (!ArticProtocolServer::SetNonBlock(accept_fd, true)) {
         logger.Error("Worker %d: Cannot set non-block", id);
         shutdown(accept_fd, SHUT_RDWR);
         close(accept_fd);
@@ -432,7 +432,7 @@ void ArticBaseServer::RequestHandler::Serve() {
     }
 }
 
-bool ArticBaseServer::MethodInterface::GetParameterS8(s8& out) {
+bool ArticProtocolServer::MethodInterface::GetParameterS8(s8& out) {
     if (state != MethodState::PARSING_INPUT)
         return false;
 
@@ -452,7 +452,7 @@ bool ArticBaseServer::MethodInterface::GetParameterS8(s8& out) {
     return false;
 }
 
-bool ArticBaseServer::MethodInterface::GetParameterS16(s16& out) {
+bool ArticProtocolServer::MethodInterface::GetParameterS16(s16& out) {
     if (state != MethodState::PARSING_INPUT)
         return false;
 
@@ -472,7 +472,7 @@ bool ArticBaseServer::MethodInterface::GetParameterS16(s16& out) {
     return false;
 }
 
-bool ArticBaseServer::MethodInterface::GetParameterS32(s32& out) {
+bool ArticProtocolServer::MethodInterface::GetParameterS32(s32& out) {
     if (state != MethodState::PARSING_INPUT)
         return false;
 
@@ -492,7 +492,7 @@ bool ArticBaseServer::MethodInterface::GetParameterS32(s32& out) {
     return false;
 }
 
-bool ArticBaseServer::MethodInterface::GetParameterS64(s64& out) {
+bool ArticProtocolServer::MethodInterface::GetParameterS64(s64& out) {
     if (state != MethodState::PARSING_INPUT)
         return false;
 
@@ -512,7 +512,7 @@ bool ArticBaseServer::MethodInterface::GetParameterS64(s64& out) {
     return false;
 }
 
-bool ArticBaseServer::MethodInterface::GetParameterBuffer(void*& outBuff, size_t& outSize) {
+bool ArticProtocolServer::MethodInterface::GetParameterBuffer(void*& outBuff, size_t& outSize) {
     if (state != MethodState::PARSING_INPUT)
         return false;
 
@@ -573,7 +573,7 @@ bool ArticBaseServer::MethodInterface::GetParameterBuffer(void*& outBuff, size_t
     return false;
 }
 
-ArticBaseCommon::Buffer* ArticBaseServer::MethodInterface::ReserveResultBuffer(u32 bufferID, size_t resultBuffSize) {
+ArticBaseCommon::Buffer* ArticProtocolServer::MethodInterface::ReserveResultBuffer(u32 bufferID, size_t resultBuffSize) {
     if (state != MethodState::GENERATING_OUTPUT) {
         if (state == MethodState::PARSING_INPUT) {
             state = MethodState::UNEXPECTED_PARSING_INPUT;
@@ -589,7 +589,7 @@ ArticBaseCommon::Buffer* ArticBaseServer::MethodInterface::ReserveResultBuffer(u
     return buf;
 }
 
-ArticBaseCommon::Buffer* ArticBaseServer::MethodInterface::ResizeLastResultBuffer(ArticBaseCommon::Buffer* buffer, size_t newSize) {
+ArticBaseCommon::Buffer* ArticProtocolServer::MethodInterface::ResizeLastResultBuffer(ArticBaseCommon::Buffer* buffer, size_t newSize) {
     if (state != MethodState::GENERATING_OUTPUT) {
         if (state == MethodState::PARSING_INPUT) {
             state = MethodState::UNEXPECTED_PARSING_INPUT;
@@ -607,20 +607,20 @@ ArticBaseCommon::Buffer* ArticBaseServer::MethodInterface::ResizeLastResultBuffe
     return buffer;
 }
 
-void ArticBaseServer::MethodInterface::FinishGood(int returnValue) {
+void ArticProtocolServer::MethodInterface::FinishGood(int returnValue) {
     if (state == MethodState::GENERATING_OUTPUT)
         state = MethodState::FINISHED;
     if (state == MethodState::PARSING_INPUT)
         state = MethodState::UNEXPECTED_PARSING_INPUT;
     this->returnValue = returnValue;
 }
-void ArticBaseServer::MethodInterface::FinishInternalError() {
+void ArticProtocolServer::MethodInterface::FinishInternalError() {
     if (state == MethodState::GENERATING_OUTPUT || state == MethodState::PARSING_INPUT)
         state = MethodState::INTERNAL_METHOD_ERROR;
     return;
 }
 
-ArticBaseServer::MethodInterface::WorkBufferHandler::ResizeState ArticBaseServer::MethodInterface::WorkBufferHandler::ResizeLast(ArticBaseCommon::Buffer* buffer, size_t newSize) {
+ArticProtocolServer::MethodInterface::WorkBufferHandler::ResizeState ArticProtocolServer::MethodInterface::WorkBufferHandler::ResizeLast(ArticBaseCommon::Buffer* buffer, size_t newSize) {
     if (buffer->bufferSize == newSize)
         return ResizeState::GOOD;
     if ((uintptr_t)workBuffer + offset != (uintptr_t)buffer + buffer->bufferSize + sizeof(ArticBaseCommon::Buffer))
