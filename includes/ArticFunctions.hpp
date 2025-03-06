@@ -6,7 +6,7 @@
 #include "memory.h"
 #include "string"
 
-namespace ArticBaseFunctions {
+namespace ArticFunctions {
     // All method handlers should be defined here
     extern std::map<std::string, void(*)(ArticProtocolServer::MethodInterface& out)> functionHandlers;
 

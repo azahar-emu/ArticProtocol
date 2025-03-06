@@ -2,7 +2,7 @@
 #include <3ds/types.h>
 #include <array>
 
-namespace ArticBaseCommon {
+namespace ArticProtocolCommon {
     enum class MethodState : int {
         PARSING_INPUT = 0,
         PARAMETER_TYPE_MISMATCH = 1,

@@ -41,8 +41,8 @@ ArticProtocolServer::~ArticProtocolServer() {
 }
 
 void ArticProtocolServer::Serve() {
-    ArticBaseCommon::RequestPacket req;
-    std::array<ArticBaseCommon::RequestParameter, MAX_PARAM_AMOUNT> params;
+    ArticProtocolCommon::RequestPacket req;
+    std::array<ArticProtocolCommon::RequestParameter, MAX_PARAM_AMOUNT> params;
     int retryCount = 0;
     while (run && !stopQueried) {
         if (!Read(socketFd, &req, sizeof(req))) {
@@ -64,7 +64,7 @@ void ArticProtocolServer::Serve() {
         // Process special method now, delegate otherwise
         if (methodArray[0] == '$') {
             logger.Debug("Server: Processing %s (rID %d)", methodArray.data(), req.requestID);
-            ArticBaseCommon::DataPacket resp{};
+            ArticProtocolCommon::DataPacket resp{};
             resp.requestID = req.requestID;
             std::string_view method(methodArray.data());
             if (method == "$PING") {
@@ -98,7 +98,7 @@ void ArticProtocolServer::Serve() {
             u32 readParams = 0;
             if (req.parameterCount) {
                 if (req.parameterCount <= MAX_PARAM_AMOUNT) {
-                    if (!Read(socketFd, params.data(), req.parameterCount * sizeof(ArticBaseCommon::RequestParameter))) {
+                    if (!Read(socketFd, params.data(), req.parameterCount * sizeof(ArticProtocolCommon::RequestParameter))) {
                         if (run) logger.Error("Server: Error reading from socket");
                         continue;
                     }
@@ -111,7 +111,7 @@ void ArticProtocolServer::Serve() {
             
             {
                 CTRPluginFramework::Lock l(pendingRequestsMutex);
-                pendingRequests.push(Request{.reqPacket = req, .reqParameters = std::vector<ArticBaseCommon::RequestParameter>(params.begin(), params.begin() + readParams)});
+                pendingRequests.push(Request{.reqPacket = req, .reqParameters = std::vector<ArticProtocolCommon::RequestParameter>(params.begin(), params.begin() + readParams)});
             }
             LightEvent_Signal(&newPendingRequest);
         }
@@ -380,14 +380,14 @@ void ArticProtocolServer::RequestHandler::Serve() {
                 server->pendingRequests.pop();
             }
 
-            ArticBaseCommon::DataPacket respPacket{};
+            ArticProtocolCommon::DataPacket respPacket{};
             respPacket.requestID = req.reqPacket.requestID;
 
             std::array<char, sizeof(req.reqPacket.method) + 1> methodArray = {0};
             memcpy(methodArray.data(), req.reqPacket.method.data(), req.reqPacket.method.size());
-            auto it = ArticBaseFunctions::functionHandlers.find(std::string(methodArray.data()));
-            if (it == ArticBaseFunctions::functionHandlers.end()) {
-                respPacket.resp.articResult = ArticBaseCommon::ResponseMethod::ArticResult::METHOD_NOT_FOUND;
+            auto it = ArticFunctions::functionHandlers.find(std::string(methodArray.data()));
+            if (it == ArticFunctions::functionHandlers.end()) {
+                respPacket.resp.articResult = ArticProtocolCommon::ResponseMethod::ArticResult::METHOD_NOT_FOUND;
                 logger.Error("Worker %d: Method not found: %s", id, methodArray.data());
                 if (!Write(accept_fd, &respPacket, sizeof(respPacket))) {
                     if (run)
@@ -401,9 +401,9 @@ void ArticProtocolServer::RequestHandler::Serve() {
             MethodInterface mi(req, workBuffer, workBufferSize, accept_fd);
             it->second(mi);
 
-            ArticBaseCommon::MethodState mState = mi.GetMethodState();
-            if (mState != ArticBaseCommon::MethodState::FINISHED) {
-                respPacket.resp.articResult = ArticBaseCommon::ResponseMethod::ArticResult::METHOD_ERROR;
+            ArticProtocolCommon::MethodState mState = mi.GetMethodState();
+            if (mState != ArticProtocolCommon::MethodState::FINISHED) {
+                respPacket.resp.articResult = ArticProtocolCommon::ResponseMethod::ArticResult::METHOD_ERROR;
                 logger.Error("Worker %d: %s method error: %d", id, methodArray.data(), mState);
                 respPacket.resp.methodResult = (int)mState;
                 if (!Write(accept_fd, &respPacket, sizeof(respPacket))) {
@@ -412,7 +412,7 @@ void ArticProtocolServer::RequestHandler::Serve() {
                     return;
                 }
             } else {
-                respPacket.resp.articResult = ArticBaseCommon::ResponseMethod::ArticResult::SUCCESS;
+                respPacket.resp.articResult = ArticProtocolCommon::ResponseMethod::ArticResult::SUCCESS;
                 respPacket.resp.methodResult = mi.GetMethodReturnValue();
                 auto outBuffer = mi.GetOutputBuffer();
                 respPacket.resp.bufferSize = outBuffer.second;
@@ -441,9 +441,9 @@ bool ArticProtocolServer::MethodInterface::GetParameterS8(s8& out) {
         return false;
     }
 
-    ArticBaseCommon::RequestParameter& currParam = req.reqParameters[currParameter++];
+    ArticProtocolCommon::RequestParameter& currParam = req.reqParameters[currParameter++];
 
-    if (currParam.type == ArticBaseCommon::RequestParameterType::IN_INTEGER_8) {
+    if (currParam.type == ArticProtocolCommon::RequestParameterType::IN_INTEGER_8) {
         out = *(s8*)currParam.data;
         return true;
     }
@@ -461,9 +461,9 @@ bool ArticProtocolServer::MethodInterface::GetParameterS16(s16& out) {
         return false;
     }
 
-    ArticBaseCommon::RequestParameter& currParam = req.reqParameters[currParameter++];
+    ArticProtocolCommon::RequestParameter& currParam = req.reqParameters[currParameter++];
 
-    if (currParam.type == ArticBaseCommon::RequestParameterType::IN_INTEGER_16) {
+    if (currParam.type == ArticProtocolCommon::RequestParameterType::IN_INTEGER_16) {
         out = *(s16*)currParam.data;
         return true;
     }
@@ -481,9 +481,9 @@ bool ArticProtocolServer::MethodInterface::GetParameterS32(s32& out) {
         return false;
     }
 
-    ArticBaseCommon::RequestParameter& currParam = req.reqParameters[currParameter++];
+    ArticProtocolCommon::RequestParameter& currParam = req.reqParameters[currParameter++];
 
-    if (currParam.type == ArticBaseCommon::RequestParameterType::IN_INTEGER_32) {
+    if (currParam.type == ArticProtocolCommon::RequestParameterType::IN_INTEGER_32) {
         out = *(s32*)currParam.data;
         return true;
     }
@@ -501,9 +501,9 @@ bool ArticProtocolServer::MethodInterface::GetParameterS64(s64& out) {
         return false;
     }
 
-    ArticBaseCommon::RequestParameter& currParam = req.reqParameters[currParameter++];
+    ArticProtocolCommon::RequestParameter& currParam = req.reqParameters[currParameter++];
 
-    if (currParam.type == ArticBaseCommon::RequestParameterType::IN_INTEGER_64) {
+    if (currParam.type == ArticProtocolCommon::RequestParameterType::IN_INTEGER_64) {
         out = *(s64*)currParam.data;
         return true;
     }
@@ -521,24 +521,24 @@ bool ArticProtocolServer::MethodInterface::GetParameterBuffer(void*& outBuff, si
         return false;
     }
 
-    ArticBaseCommon::RequestParameter& currParam = req.reqParameters[currParameter++];
+    ArticProtocolCommon::RequestParameter& currParam = req.reqParameters[currParameter++];
 
-    if (currParam.type == ArticBaseCommon::RequestParameterType::IN_SMALL_BUFFER) {
+    if (currParam.type == ArticProtocolCommon::RequestParameterType::IN_SMALL_BUFFER) {
         outBuff = currParam.data;
         outSize = currParam.parameterSize;
         return true;
-    } else if (currParam.type == ArticBaseCommon::RequestParameterType::IN_BIG_BUFFER) {
+    } else if (currParam.type == ArticProtocolCommon::RequestParameterType::IN_BIG_BUFFER) {
         // Perform request for buffer
         size_t bufferSize = *(size_t*)currParam.data;
-        ArticBaseCommon::Buffer* buf = workBuffer.Reserve(currParam.bigBufferID, bufferSize);
+        ArticProtocolCommon::Buffer* buf = workBuffer.Reserve(currParam.bigBufferID, bufferSize);
         if (buf == nullptr) {
             state = MethodState::OUT_OF_MEMORY;
             return false;
         }
 
-        ArticBaseCommon::DataPacket dataPacket{};
+        ArticProtocolCommon::DataPacket dataPacket{};
         dataPacket.requestID = req.reqPacket.requestID;
-        dataPacket.resp.articResult = ArticBaseCommon::ResponseMethod::ArticResult::PROVIDE_INPUT;
+        dataPacket.resp.articResult = ArticProtocolCommon::ResponseMethod::ArticResult::PROVIDE_INPUT;
         dataPacket.resp.provideInputBufferID = currParam.bigBufferID;
         dataPacket.resp.bufferSize = (int)bufferSize;
         
@@ -553,7 +553,7 @@ bool ArticProtocolServer::MethodInterface::GetParameterBuffer(void*& outBuff, si
         }
         
         if (dataPacket.requestID != req.reqPacket.requestID || 
-            dataPacket.resp.articResult != ArticBaseCommon::ResponseMethod::ArticResult::PROVIDE_INPUT || 
+            dataPacket.resp.articResult != ArticProtocolCommon::ResponseMethod::ArticResult::PROVIDE_INPUT || 
             dataPacket.resp.provideInputBufferID != currParam.bigBufferID ||
             dataPacket.resp.bufferSize != (int)bufferSize) {
 
@@ -573,7 +573,7 @@ bool ArticProtocolServer::MethodInterface::GetParameterBuffer(void*& outBuff, si
     return false;
 }
 
-ArticBaseCommon::Buffer* ArticProtocolServer::MethodInterface::ReserveResultBuffer(u32 bufferID, size_t resultBuffSize) {
+ArticProtocolCommon::Buffer* ArticProtocolServer::MethodInterface::ReserveResultBuffer(u32 bufferID, size_t resultBuffSize) {
     if (state != MethodState::GENERATING_OUTPUT) {
         if (state == MethodState::PARSING_INPUT) {
             state = MethodState::UNEXPECTED_PARSING_INPUT;
@@ -581,7 +581,7 @@ ArticBaseCommon::Buffer* ArticProtocolServer::MethodInterface::ReserveResultBuff
         return nullptr;
     }
 
-    ArticBaseCommon::Buffer* buf = workBuffer.Reserve(bufferID, resultBuffSize);
+    ArticProtocolCommon::Buffer* buf = workBuffer.Reserve(bufferID, resultBuffSize);
     if (buf == nullptr) {
         state = MethodState::OUT_OF_MEMORY_OUTPUT;
         return nullptr;
@@ -589,7 +589,7 @@ ArticBaseCommon::Buffer* ArticProtocolServer::MethodInterface::ReserveResultBuff
     return buf;
 }
 
-ArticBaseCommon::Buffer* ArticProtocolServer::MethodInterface::ResizeLastResultBuffer(ArticBaseCommon::Buffer* buffer, size_t newSize) {
+ArticProtocolCommon::Buffer* ArticProtocolServer::MethodInterface::ResizeLastResultBuffer(ArticProtocolCommon::Buffer* buffer, size_t newSize) {
     if (state != MethodState::GENERATING_OUTPUT) {
         if (state == MethodState::PARSING_INPUT) {
             state = MethodState::UNEXPECTED_PARSING_INPUT;
@@ -620,15 +620,15 @@ void ArticProtocolServer::MethodInterface::FinishInternalError() {
     return;
 }
 
-ArticProtocolServer::MethodInterface::WorkBufferHandler::ResizeState ArticProtocolServer::MethodInterface::WorkBufferHandler::ResizeLast(ArticBaseCommon::Buffer* buffer, size_t newSize) {
+ArticProtocolServer::MethodInterface::WorkBufferHandler::ResizeState ArticProtocolServer::MethodInterface::WorkBufferHandler::ResizeLast(ArticProtocolCommon::Buffer* buffer, size_t newSize) {
     if (buffer->bufferSize == newSize)
         return ResizeState::GOOD;
-    if ((uintptr_t)workBuffer + offset != (uintptr_t)buffer + buffer->bufferSize + sizeof(ArticBaseCommon::Buffer))
+    if ((uintptr_t)workBuffer + offset != (uintptr_t)buffer + buffer->bufferSize + sizeof(ArticProtocolCommon::Buffer))
         return ResizeState::INPUT_ERROR;
     int sizeDiff = newSize - buffer->bufferSize;
     if (newSize == 0) {
         // Remove the buffer completely
-        sizeDiff -= sizeof(ArticBaseCommon::Buffer);
+        sizeDiff -= sizeof(ArticProtocolCommon::Buffer);
     }
     if (offset + sizeDiff > workBufferSize)
         return ResizeState::OUT_OF_MEMORY;

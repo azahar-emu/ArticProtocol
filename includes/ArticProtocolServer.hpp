@@ -42,8 +42,8 @@ private:
 
     class Request {
     public:
-        ArticBaseCommon::RequestPacket reqPacket;
-        std::vector<ArticBaseCommon::RequestParameter> reqParameters;
+        ArticProtocolCommon::RequestPacket reqPacket;
+        std::vector<ArticProtocolCommon::RequestParameter> reqParameters;
     };
 
     static constexpr const char* VERSION = "2";
@@ -60,7 +60,7 @@ private:
 public:
     class MethodInterface {
     public:
-        using MethodState = ArticBaseCommon::MethodState;
+        using MethodState = ArticProtocolCommon::MethodState;
 
         MethodInterface(Request& _req, void* _workBuffer, size_t _workBufferSize, int& _socketFD) : req(_req), workBuffer(_workBuffer, _workBufferSize), socketFD(_socketFD)  {};
         
@@ -82,8 +82,8 @@ public:
             return true;
         }
 
-        ArticBaseCommon::Buffer* ReserveResultBuffer(u32 bufferID, size_t resultBuffSize);
-        ArticBaseCommon::Buffer* ResizeLastResultBuffer(ArticBaseCommon::Buffer* buffer, size_t newSize);
+        ArticProtocolCommon::Buffer* ReserveResultBuffer(u32 bufferID, size_t resultBuffSize);
+        ArticProtocolCommon::Buffer* ResizeLastResultBuffer(ArticProtocolCommon::Buffer* buffer, size_t newSize);
 
         void FinishGood(int returnValue);
         void FinishInternalError();
@@ -117,13 +117,13 @@ public:
                 return offset;
             }
 
-            ArticBaseCommon::Buffer* Reserve(u32 bufferID, u32 bufferSize) {
-                if (offset + sizeof(ArticBaseCommon::Buffer) + bufferSize > workBufferSize) {
+            ArticProtocolCommon::Buffer* Reserve(u32 bufferID, u32 bufferSize) {
+                if (offset + sizeof(ArticProtocolCommon::Buffer) + bufferSize > workBufferSize) {
                     logger.Error("o=0x%08X, bs=0x%08X, wbs=0x%08X", offset, bufferSize, workBufferSize);
                     return nullptr;
                 }
-                ArticBaseCommon::Buffer* buf = (ArticBaseCommon::Buffer*)((uintptr_t)workBuffer + offset);
-                offset += sizeof(ArticBaseCommon::Buffer) + bufferSize;
+                ArticProtocolCommon::Buffer* buf = (ArticProtocolCommon::Buffer*)((uintptr_t)workBuffer + offset);
+                offset += sizeof(ArticProtocolCommon::Buffer) + bufferSize;
                 buf->bufferID = bufferID;
                 buf->bufferSize = bufferSize;
                 return buf;
@@ -134,7 +134,7 @@ public:
                 INPUT_ERROR,
                 OUT_OF_MEMORY,
             };
-            ResizeState ResizeLast(ArticBaseCommon::Buffer* buffer, size_t newSize);
+            ResizeState ResizeLast(ArticProtocolCommon::Buffer* buffer, size_t newSize);
 
             std::pair<void*, size_t> GetRaw() {
                 return std::make_pair(workBuffer, Size());
