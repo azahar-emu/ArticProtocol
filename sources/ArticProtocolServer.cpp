@@ -610,8 +610,10 @@ ArticProtocolCommon::Buffer* ArticProtocolServer::MethodInterface::ResizeLastRes
 void ArticProtocolServer::MethodInterface::FinishGood(int returnValue) {
     if (state == MethodState::GENERATING_OUTPUT)
         state = MethodState::FINISHED;
-    if (state == MethodState::PARSING_INPUT)
+    else if (state == MethodState::PARSING_INPUT)
         state = MethodState::UNEXPECTED_PARSING_INPUT;
+    else if (state == MethodState::FINISHED)
+        state = MethodState::INTERNAL_METHOD_ERROR;
     this->returnValue = returnValue;
 }
 void ArticProtocolServer::MethodInterface::FinishInternalError() {
